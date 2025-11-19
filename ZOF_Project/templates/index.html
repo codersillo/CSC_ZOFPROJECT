@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZOF Solver - Numerical Analysis</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 { color: var(--primary); margin-bottom: 10px; }
+        
+        /* Form Styling */
+        .solver-card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        input:focus, select:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+        .full-width { grid-column: 1 / -1; }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Input Groups (Hidden by default) */
+        .input-group { display: none; }
+        .input-group.active { display: block; }
+
+        /* Results Table */
+        .results-card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: none; /* Hidden by default */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.95rem;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+        }
+        .success { color: #16a34a; font-weight: bold; }
+        .error-msg { color: #dc2626; font-weight: bold; }
+        
+        .formula-hint {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Zero of Functions (ZOF) Solver</h1>
+        <p>Numerical Methods Project</p>
+    </div>
+
+    <div class="solver-card">
+        <form id="solverForm">
+            <div class="form-grid">
+                <!-- Method Selection -->
+                <div class="form-group full-width">
+                    <label for="method">Select Method</label>
+                    <select name="method" id="method" onchange="updateForm()">
+                        <option value="bisection">Bisection Method</option>
+                        <option value="regula_falsi">Regula Falsi (False Position)</option>
+                        <option value="secant">Secant Method</option>
+                        <option value="newton">Newton-Raphson Method</option>
+                        <option value="fixed_point">Fixed Point Iteration</option>
+                        <option value="mod_secant">Modified Secant Method</option>
+                    </select>
+                </div>
+
+                <!-- Function Input -->
+                <div class="form-group full-width">
+                    <label for="function">Function f(x) or g(x)</label>
+                    <input type="text" name="function" id="function" required placeholder="e.g., x**3 - x - 2">
+                    <div class="formula-hint">Use Python syntax: x**2 for x², sin(x), exp(x). For Fixed Point, enter g(x).</div>
+                </div>
+
+                <!-- Derivative (Newton only) -->
+                <div class="form-group input-group" id="grp-deriv">
+                    <label for="derivative">Derivative f'(x)</label>
+                    <input type="text" name="derivative" placeholder="e.g., 3*x**2 - 1">
+                </div>
+
+                <!-- Initial Guesses -->
+                <div class="form-group input-group" id="grp-a">
+                    <label for="param_a">Lower Bound (a)</label>
+                    <input type="number" step="any" name="param_a">
+                </div>
+                <div class="form-group input-group" id="grp-b">
+                    <label for="param_b">Upper Bound (b)</label>
+                    <input type="number" step="any" name="param_b">
+                </div>
+                
+                <div class="form-group input-group" id="grp-x0">
+                    <label for="param_x0">Initial Guess (x0)</label>
+                    <input type="number" step="any" name="param_x0">
+                </div>
+                <div class="form-group input-group" id="grp-x1">
+                    <label for="param_x1">Second Guess (x1)</label>
+                    <input type="number" step="any" name="param_x1">
+                </div>
+
+                <div class="form-group input-group" id="grp-delta">
+                    <label for="param_delta">Delta (Perturbation)</label>
+                    <input type="number" step="any" name="param_delta" value="0.01">
+                </div>
+
+                <!-- Settings -->
+                <div class="form-group">
+                    <label for="tolerance">Tolerance</label>
+                    <input type="number" step="any" name="tolerance" value="0.0001" required>
+                </div>
+                <div class="form-group">
+                    <label for="max_iter">Max Iterations</label>
+                    <input type="number" name="max_iter" value="50" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <button type="submit" id="submitBtn">Calculate Root</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-card" id="resultsCard">
+        <h2 style="margin-top: 0;">Computation Results</h2>
+        <div id="statusMessage"></div>
+        
+        <div style="overflow-x: auto;">
+            <table id="resultsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Iter</th>
+                        <th>Root Estimate</th>
+                        <th>Value</th>
+                        <th>Abs Error</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <!-- Rows injected via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateForm() {
+        const method = document.getElementById('method').value;
+        
+        // Hide all dynamic groups
+        document.querySelectorAll('.input-group').forEach(el => el.classList.remove('active'));
+        
+        // Show specific groups
+        if (method === 'bisection' || method === 'regula_falsi') {
+            document.getElementById('grp-a').classList.add('active');
+            document.getElementById('grp-b').classList.add('active');
+        } else if (method === 'secant') {
+            document.getElementById('grp-x0').classList.add('active');
+            document.getElementById('grp-x1').classList.add('active');
+        } else if (method === 'newton') {
+            document.getElementById('grp-deriv').classList.add('active');
+            document.getElementById('grp-x0').classList.add('active');
+        } else if (method === 'fixed_point') {
+            document.getElementById('grp-x0').classList.add('active');
+        } else if (method === 'mod_secant') {
+            document.getElementById('grp-x0').classList.add('active');
+            document.getElementById('grp-delta').classList.add('active');
+        }
+    }
+
+    // Handle Form Submission
+    document.getElementById('solverForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('submitBtn');
+        const resultsCard = document.getElementById('resultsCard');
+        const statusMsg = document.getElementById('statusMessage');
+        const table = document.getElementById('resultsTable');
+        const tbody = document.getElementById('resultsBody');
+        
+        // UI Loading State
+        btn.disabled = true;
+        btn.innerText = "Calculating...";
+        resultsCard.style.display = 'none';
+        tbody.innerHTML = '';
+
+        const formData = new FormData(this);
+
+        try {
+            const response = await fetch('/', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            resultsCard.style.display = 'block';
+            
+            if (result.error) {
+                statusMsg.innerHTML = `<p class="error-msg">${result.error}</p>`;
+                table.style.display = 'none';
+            } else {
+                // Success Status
+                if (result.converged) {
+                    statusMsg.innerHTML = `<p class="success">Converged to Root: ${result.root}</p>`;
+                } else {
+                    statusMsg.innerHTML = `<p class="error-msg">Did not converge within max iterations.</p>`;
+                }
+                
+                // Build Table
+                table.style.display = 'table';
+                result.data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.iter}</td>
+                        <td>${row.root}</td>
+                        <td>${row.func}</td>
+                        <td>${row.error}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            
+        } catch (error) {
+            resultsCard.style.display = 'block';
+            statusMsg.innerHTML = `<p class="error-msg">System Error: ${error.message}</p>`;
+            table.style.display = 'none';
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Calculate Root";
+        }
+    });
+
+    // Initialize on load
+    window.onload = updateForm;
+</script>
+
+</body>
+</html>
